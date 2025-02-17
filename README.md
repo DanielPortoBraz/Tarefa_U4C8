@@ -1,7 +1,7 @@
 # Controle de PWM e Display com ADC na Raspberry Pi Pico W   
 
 ## **Descrição**  
-O projeto a seguir, dispõe de um **joystick** que fornece valores analógicos dos seus eixos x e y, que controlam o **PWM** (modulção da largura de pulso) de um **LED RGB**. Nele, o **LED vermelho** varia conforme o **eixo x**, e o **LED azul** conforme o **eixo y**. Outra funcionalidade dos valores dos eixos, é o controle da posição de um **quadrado 8x8** num **display OLED** de **128x64 pixels** com comunicação **I2C**. Há também, **interrupções** controladas por **botões** para alternar estados dos LEDs e o estado de uma borda retangular exibida no display. No código, são utilizados os padrões do **PICO SDK C/C++** para execução na placa **Raspberry Pi Pico W**, enquanto os periféricos se baseiam nos disponíveis da placa **BitDogLab**.
+O projeto a seguir, dispõe de um **joystick** que fornece valores analógicos dos seus eixos **x** e **y**, que controlam o **PWM** (modulção por largura de pulso) de um **LED RGB**. Nele, o **LED vermelho** varia conforme o **eixo x**, e o **LED azul** conforme o **eixo y**. Outra funcionalidade dos valores dos eixos, é o controle da posição de um **quadrado 8x8** num **display OLED** de **128x64 pixels** com comunicação **I2C**. Há também, **interrupções** controladas por **botões** para alternar estados dos LEDs e o estado de uma borda retangular exibida no display. No código, são utilizados os padrões do **PICO SDK C/C++** para execução na placa **Raspberry Pi Pico W**, enquanto os periféricos se baseiam nos disponíveis da placa **BitDogLab**.
 
 ## **Objetivos**  
 • Compreender o funcionamento do conversor analógico-digital (ADC) no RP2040.
@@ -51,7 +51,7 @@ O projeto a seguir, dispõe de um **joystick** que fornece valores analógicos d
 
 
 ## ADC na Raspberry Pi Pico W
-O ADC (conversor analógico-digital) consiste na leitura de um valor analóigco que passa por um processo de conversão (na RP2040, a aproximação por amostra sucessiva (SAR)) que gera um valor digital equivalente. Nesse processo são utilizados dois conceitos: a amostragem, referente ao número de leituras feitas em determinado tempo; e a quantização, que converte o valor analógico ao digital de acordo com a resolução do conversor (i.e, a quantidade de valores representados em bits). Assim, o RP2040 permite conversões A/D, com uma taxa de amostragem de 500 ksps (amostras por segundo), e resolução de 12 bits (4096 valores). A seguir, a fórmula para conversão A/D com os valores do RP2040:
+O **ADC (conversor analógico-digital)** consiste na leitura de um valor analógico que passa por um processo de conversão (na RP2040, a **aproximação por amostra sucessiva (SAR)**) que gera um valor digital equivalente. No processo de conversão, são utilizados dois conceitos: a **amostragem**, referente ao número de leituras feitas em determinado tempo; e a **quantização**, que converte o valor analógico ao digital de acordo com a resolução do conversor (i.e, a quantidade de valores representados em bits). Assim, o RP2040 permite conversões A/D, com uma taxa de amostragem de **500 ksps** (amostras por segundo), e resolução de **12 bits** (4096 valores). A seguir, a fórmula para conversão A/D com os valores do RP2040:
 
 $$
 D = \left\lfloor \frac{V_{in} \times 4095}{V_{ref}} \right\rfloor
@@ -63,8 +63,43 @@ Onde:
 - $( V_{ref} $) é a tensão de referência do ADC (típicamente **3.3V** no RP2040);
 - $( 4095 $) representa o valor máximo em **12 bits** $((2^{12} - 1)$).
 
+### Configuração do ADC no Raspberry Pi Pico W
+A configuração de uma entrada ADC no padrão Pico SDK consiste em 4 funções. Antes de detalhá-las, deve ser inserida a biblioteca ```hardware/adc.h``` no código principal, e adicioná-la no arquivo ```CMakeLists.txt``` desta forma:
+
+```bash
+target_link_libraries(tarefa_U4C8
+        pico_stdlib
+        hardware_pwm // Biblioteca para ADC
+        hardware_adc
+        hardware_i2c
+        )
+```
+
+Seguindo para as funções, têm-se:
+1. ```adc_init();```: Inicializa os periféricos ADCs.
+2. ```adc_gpio_init(pino)```: Configura o pino GPIO como entrada ADC. São válidos, os GPIOs 26 - 29.
+3. ```adc_select_input(canal)```: Seleciona o canal de entrada do GPIO.
+4. ```adc_read();```: Retorna o valor digital do pino ADC.
+
+No projeto, a configuração dos pinos de eixo do joystick:
+
+```c
+79 adc_init();
+80 adc_gpio_init(VRx);
+81 adc_gpio_init(VRy);
+...
+
+90 adc_select_input(ADC_CHAN_1);
+91 sleep_us(2);
+92 *vrx_value = adc_read();
+93
+94 adc_select_input(ADC_CHAN_0);
+95 sleep_us(2);
+96 *vry_value = adc_read();
+```
+
 ## Interação entre o ADC e o Display OLED
-Os valores analógicos fornecidos pelos eixos **x** e **y** do joystick controlam o quadrado 8x8 no display OLED através da função ```move_square(uint16_t vrx_value, uint16_t vry_value, uint8_t *x, uint8_t *y)```, que calcula a posição do quadrado através de uma proporção aos valores analógicos dos eixos do joystick, para que no estado de repouso deste (aproximadamente, 2048 em cada eixo) o quadrado fique no meio do display. A proporção consiste em obter o valor analógico, calcular sua porcentagem com relação ao total da dimensão do display (no eixo **x** equivale a 128, por exemplo) e dividir o resultado por 4095. 
+Os valores analógicos fornecidos pelos eixos **x** e **y** do joystick controlam o quadrado 8x8 no display OLED através da função ```move_square(uint16_t vrx_value, uint16_t vry_value, uint8_t *x, uint8_t *y)```, que calcula a posição do quadrado através de uma proporção aos valores analógicos dos eixos do joystick, para que no estado de repouso deste (aproximadamente, 2048 em cada eixo), por exemplo, o quadrado fique no meio do display. A proporção consiste em obter o valor analógico, calcular sua porcentagem com relação ao total da dimensão do display (no eixo **x** equivale a 128, por exemplo) e dividir o resultado por 4095. 
 
 No caso da BitDogLab, o eixo **y** se comporta de maneira inversa, o que leva ao valor oposto daquele encontrado originalmente, por isso subtrai-se o resultado por 56. A implementação no código, nela deve-se observar que se subtrai 8 de cada eixo para garantir que o quadrado não ultrapasse o limite:
 
@@ -87,6 +122,7 @@ void move_square(uint16_t vrx_value, uint16_t vry_value, uint8_t *x, uint8_t *y)
   -```init_button()```: Inicializa o botão A, configurando seu pino como entrada com pull-up.  
 
   -```initialize_i2c()```: Configura e inicializa a comunicação I2C, ativando as resistências de pull-up nos pinos de dados e clock.  
+  
   -```move_square(uint16_t vrx_value, uint16_t vry_value, uint8_t *x, uint8_t *y)```: Converte os valores do joystick para coordenadas correspondentes no display OLED, garantindo um posicionamento proporcional do quadrado.  
 
   -```gpio_irq_handler(uint gpio, uint32_t events)```: Função de callback para interrupções nos botões. Alterna o estado dos LEDs e da borda do display OLED ao detectar um pressionamento.  
