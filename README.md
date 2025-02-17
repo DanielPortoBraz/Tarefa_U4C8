@@ -61,7 +61,7 @@ Onde:
 - $( D $) é o valor digital convertido (entre **0** e **4095**);
 - $( V_{in} $) é a tensão de entrada analógica (entre **0V** e **V_{ref}**);
 - $( V_{ref} $) é a tensão de referência do ADC (típicamente **3.3V** no RP2040);
-- $( 4095 $) representa o valor máximo em **12 bits** $((2^{12} - 1)$).
+- $( 4095 $) representa o valor máximo em **12 bits** $((2^{12} - 1))$.
 
 ### Configuração do ADC no Raspberry Pi Pico W
 A configuração de uma entrada ADC no padrão Pico SDK consiste em 4 funções. Antes de detalhá-las, deve ser inserida a biblioteca ```hardware/adc.h``` no código principal, e adicioná-la no arquivo ```CMakeLists.txt``` desta forma:
